@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Maps Lead Hunter</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+    :root {
+      --bg: #09090b;
+      --card: #18181b;
+      --border: #27272a;
+      --border-hover: #3f3f46;
+      --primary: #8b5cf6;
+      --primary-hover: #7c3aed;
+      --primary-gradient: linear-gradient(135deg, #8b5cf6, #3b82f6);
+      --text: #ffffff;
+      --text-muted: #a1a1aa;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #10b981;
+      --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+      --shadow-primary: 0 4px 14px 0 rgba(139, 92, 246, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      width: 380px;
+      min-height: 560px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      padding-bottom: 20px;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* Header */
+    .header {
+      background: rgba(24, 24, 27, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    .logo-img {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-primary);
+    }
+    .header-text { flex: 1; }
+    .header-text h1 {
+      font-size: 15px; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--text); margin-bottom: 2px;
+    }
+    .header-text p {
+      font-size: 11px; color: var(--text-muted); font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border-hover);
+      transition: all 0.3s ease;
+    }
+    .status-dot.active { background: var(--success); box-shadow: 0 0 8px rgba(16,185,129,0.5); }
+    .status-dot.error  { background: var(--danger); box-shadow: 0 0 8px rgba(239,68,68,0.5); }
+
+    /* Main Container */
+    .container { padding: 20px; display: flex; flex-direction: column; gap: 18px; }
+
+    /* Fields */
+    .field { display: flex; flex-direction: column; gap: 8px; }
+    .field label {
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+    }
+    
+    .field input[type="text"], .field select {
+      width: 100%; padding: 11px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      outline: none; transition: all 0.2s ease;
+      appearance: none; box-shadow: var(--shadow-sm);
+    }
+    .field input::placeholder { color: var(--border-hover); font-weight: 400; }
+    .field input:focus, .field select:focus {
+      border-color: var(--primary);
+      background: rgba(139, 92, 246, 0.04);
+      box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15);
+    }
+    
+    .select-wrap { position: relative; }
+    .select-wrap::after {
+      content: ''; position: absolute; right: 14px; top: 50%;
+      transform: translateY(-50%); width: 10px; height: 6px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='2' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5' /%3E%3C/svg%3E");
+      background-size: cover; pointer-events: none;
+    }
+    .field select option { background: var(--card); color: var(--text); font-weight: 500; }
+
+    /* Row Layouts */
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+    /* Range Input */
+    .limit-row {
+      display: flex; align-items: center; gap: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .limit-row input[type=range] {
+      flex: 1; accent-color: var(--primary);
+      background: var(--border-hover); height: 4px;
+      border-radius: 2px; outline: none; cursor: pointer;
+      -webkit-appearance: none;
+    }
+    .limit-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%; 
+      background: #fff; cursor: pointer;
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.8);
+    }
+    .limit-val {
+      font-weight: 700; font-size: 13px; color: var(--primary);
+      min-width: 32px; text-align: right; font-variant-numeric: tabular-nums;
+    }
+
+    /* Switch Toggles Card */
+    .toggles-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .toggles-title {
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+    }
+    .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 10px; }
+    
+    .toggle-item {
+      display: flex; align-items: center; gap: 8px; cursor: pointer;
+      user-select: none;
+    }
+    .toggle-item input { display: none; }
+    .toggle-box {
+      width: 32px; height: 18px; border-radius: 10px;
+      background: var(--border-hover); position: relative;
+      flex-shrink: 0; transition: background 0.3s ease;
+    }
+    .toggle-box::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; top: 2px; left: 2px;
+      transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .toggle-item.on .toggle-box { background: var(--primary-gradient); }
+    .toggle-item.on .toggle-box::after { transform: translateX(14px); }
+    
+    .toggle-label { 
+      font-size: 12px; font-weight: 500; color: var(--text-muted); 
+      transition: color 0.2s; 
+    }
+    .toggle-item:hover .toggle-label { color: var(--text); }
+    .toggle-item.on .toggle-label { color: var(--text); }
+
+    /* Actions */
+    .actions { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+    
+    .btn {
+      width: 100%; padding: 13px 16px;
+      border-radius: 10px; border: none; cursor: pointer;
+      font-family: 'Inter', sans-serif; font-weight: 600; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .btn-svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    .btn-primary {
+      background: var(--primary-gradient);
+      color: #fff;
+      box-shadow: var(--shadow-primary);
+    }
+    .btn-primary:hover:not(:disabled) { 
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4);
+      filter: brightness(1.1);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: var(--shadow-primary); }
+    .btn-primary:disabled { 
+      opacity: 0.5; cursor: not-allowed; 
+      background: var(--border-hover); box-shadow: none; color: var(--text-muted); transform: none;
+    }
+    
+    .btn-stop {
+      background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2);
+      color: var(--danger); display: none;
+    }
+    .btn-stop:hover { 
+      background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4);
+    }
+    
+    .btn-export {
+      background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.2);
+      color: var(--success); display: none;
+    }
+    .btn-export:hover { 
+      background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4);
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.2);
+    }
+
+    /* Counter */
+    .counter { text-align: center; display: none; margin-top: 10px; }
+    .counter-num {
+      font-size: 42px; font-weight: 700; letter-spacing: -0.02em;
+      background: var(--primary-gradient);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1.1; margin-bottom: 2px; font-variant-numeric: tabular-nums;
+    }
+    .counter-label { 
+      font-size: 11px; font-weight: 600; color: var(--text-muted); 
+      text-transform: uppercase; letter-spacing: 0.1em; 
+    }
+    
+    /* Progress */
+    .progress-wrap { width: 100%; display: none; margin-top: 10px; }
+    .progress-bar-bg {
+      height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden;
+      margin-bottom: 10px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    }
+    .progress-fill {
+      height: 100%; width: 0%;
+      background: var(--primary-gradient);
+      border-radius: 3px;
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+    .progress-fill::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+    @keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    
+    .progress-text-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px;
+    }
+    #progressText { color: var(--text); font-weight: 500; }
+    #progressCount { color: var(--text-muted); font-family: monospace; font-size: 12px;}
+
+    /* Log Output */
+    .log {
+      background: #000; border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px;
+      max-height: 140px; overflow-y: auto;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; 
+      font-size: 11px; line-height: 1.6; 
+      display: none; box-shadow: inset 0 2px 8px rgba(0,0,0,0.4);
+      margin-top: 10px;
+    }
+    .log-line { color: var(--text-muted); margin-bottom: 4px; }
+    .log-line:last-child { margin-bottom: 0; }
+    .log-line.ok  { color: var(--success); }
+    .log-line.err { color: var(--danger); }
+    .log-line.info { color: #60a5fa; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <img src="icons/icon48.png" alt="LH" class="logo-img" />
+  <div class="header-text">
+    <h1>Maps Lead Hunter</h1>
+    <p>Extraction Engine v1.0</p>
+  </div>
+  <div class="status-dot" id="statusDot"></div>
+</div>
+
+<div class="container">
+
+  <div class="field">
+    <label>Business / Keyword</label>
+    <input type="text" id="business" placeholder="e.g. dental clinic, hardware store…" />
+  </div>
+
+  <div class="row">
+    <div class="field">
+      <label>Country</label>
+      <div class="select-wrap">
+        <select id="country">
+          <option value="United States">United States</option>
+          <option value="United Kingdom">United Kingdom</option>
+          <option value="Canada">Canada</option>
+          <option value="Australia">Australia</option>
+          <option value="Germany">Germany</option>
+          <option value="France">France</option>
+          <option value="Pakistan">Pakistan</option>
+          <option value="India">India</option>
+          <option value="UAE">UAE</option>
+          <option value="Saudi Arabia">Saudi Arabia</option>
+          <option value="Turkey">Turkey</option>
+          <option value="Brazil">Brazil</option>
+          <option value="Mexico">Mexico</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label>City <span style="opacity: 0.5; font-weight: normal;">(optional)</span></label>
+      <input type="text" id="city" placeholder="e.g. New York" />
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Max Results</label>
+    <div class="limit-row">
+      <input type="range" id="limitRange" min="10" max="200" step="10" value="50" />
+      <span class="limit-val" id="limitVal">50</span>
+    </div>
+  </div>
+
+  <div class="toggles-card">
+    <div class="toggles-title">Extract Fields</div>
+    <div class="toggles">
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractPhone" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Phone Num</span>
+      </label>
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractEmail" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Email (web)</span>
+      </label>
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractWebsite" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Website URL</span>
+      </label>
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractAddress" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Address</span>
+      </label>
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractRating" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Ratings/Rev</span>
+      </label>
+      <label class="toggle-item on">
+        <input type="checkbox" id="extractHours" checked>
+        <div class="toggle-box"></div>
+        <span class="toggle-label">Open Hours</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-primary" id="btnStart">
+      <svg class="btn-svg" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      Start Scraping
+    </button>
+    <button class="btn btn-stop" id="btnStop">
+      <svg class="btn-svg" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" ry="2"/></svg>
+      Stop Process
+    </button>
+    <button class="btn btn-export" id="btnExport">
+      <svg class="btn-svg" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      Download Excel
+    </button>
+  </div>
+
+  <div class="counter" id="counter">
+    <div class="counter-num" id="counterNum">0</div>
+    <div class="counter-label">Leads Extracted</div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="progress-bar-bg"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text-row">
+      <span id="progressText">Initializing system...</span>
+      <span id="progressCount">0/0</span>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
+
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
