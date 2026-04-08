@@ -44,7 +44,7 @@ function setStatus(state) {
 function setRunning(running) {
   isRunning = running;
   $('btnStart').style.display = running ? 'none' : 'block';
-  $('btnStop').style.display  = running ? 'block' : 'none';
+  $('btnStop').style.display = running ? 'block' : 'none';
   $('btnStart').disabled = running;
   setStatus(running ? 'active' : '');
 }
@@ -55,19 +55,20 @@ function showExportButton() {
 
 function getConfig() {
   const business = $('business').value.trim();
-  const country  = $('country').value;
-  const city     = $('city').value.trim();
-  const limit    = parseInt($('limitRange').value, 10);
-  const query    = city ? `${business} in ${city}, ${country}` : `${business} in ${country}`;
+  const country = $('country').value;
+  const city = $('city').value.trim();
+  const limit = parseInt($('limitRange').value, 10);
+  const query = city ? `${business} in ${city}, ${country}` : `${business} in ${country}`;
   return {
     business, country, city, limit, query,
     extract: {
-      phone:   $('extractPhone').checked,
-      email:   $('extractEmail').checked,
+      phone: $('extractPhone').checked,
+      email: $('extractEmail').checked,
       website: $('extractWebsite').checked,
       address: $('extractAddress').checked,
-      rating:  $('extractRating').checked,
-      hours:   $('extractHours').checked,
+      rating: $('extractRating').checked,
+      hours: $('extractHours').checked,
+      social: $('extractSocial').checked,
     }
   };
 }
@@ -214,8 +215,8 @@ chrome.runtime.onMessage.addListener((msg) => {
   const { leads, scrapeStatus, config } = await chrome.storage.local.get(['leads', 'scrapeStatus', 'config']);
   if (config) {
     if (config.business) $('business').value = config.business;
-    if (config.country)  $('country').value  = config.country;
-    if (config.city)     $('city').value     = config.city;
+    if (config.country) $('country').value = config.country;
+    if (config.city) $('city').value = config.city;
   }
   if (scrapeStatus === 'running') { setRunning(true); log('Scraping in progress…', 'info'); }
   if (leads && leads.length > 0) {

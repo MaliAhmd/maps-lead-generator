@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   // Forward these events from content → popup
   const forwardEvents = ['PROGRESS', 'LEAD_FOUND', 'SCRAPE_DONE', 'SCRAPE_ERROR', 'LOG'];
   if (forwardEvents.includes(msg.action)) {
-    chrome.runtime.sendMessage(msg).catch(() => {}); // popup may be closed
+    chrome.runtime.sendMessage(msg).catch(() => { }); // popup may be closed
   }
 
   // ── Email extraction via CORS-bypassed Service Worker ────────────────────────
@@ -31,19 +31,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 async function findEmail(url) {
   if (!url) return '';
   const re = /[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/g;
-  const skip = ['example.com','sentry.io','schema.org','google.com',
-                'facebook.com','twitter.com','instagram.com','wixpress.com'];
+  const skip = ['example.com', 'sentry.io', 'schema.org', 'google.com',
+    'facebook.com', 'twitter.com', 'instagram.com', 'wixpress.com'];
   const clean = html => [...new Set(html.match(re) || [])].filter(e => {
     const d = e.split('@')[1] || '';
     return !skip.some(s => d.includes(s)) && e.length < 80 &&
-           !e.includes('.png') && !e.includes('.jpg');
+      !e.includes('.png') && !e.includes('.jpg');
   });
 
   const pages = [url];
   try {
     const base = new URL(url).origin;
     pages.push(base + '/contact', base + '/contact-us', base + '/about');
-  } catch {}
+  } catch { }
 
   for (const page of pages) {
     try {
@@ -51,7 +51,7 @@ async function findEmail(url) {
       if (!r.ok) continue;
       const emails = clean(await r.text());
       if (emails.length) return emails[0];
-    } catch {}
+    } catch { }
   }
   return '';
 }
@@ -61,20 +61,27 @@ function exportToExcel(leads, config) {
   try {
     // Column order and display names
     const columns = [
-      { key: 'name',        header: 'Business Name'   },
-      { key: 'category',    header: 'Category'        },
-      { key: 'phone',       header: 'Phone / WhatsApp'},
-      { key: 'email',       header: 'Email'           },
-      { key: 'website',     header: 'Website URL'     },
-      { key: 'address',     header: 'Address'         },
-      { key: 'rating',      header: 'Rating'          },
-      { key: 'reviews',     header: 'Reviews'         },
-      { key: 'hours',       header: 'Opening Hours'   },
-      { key: 'plusCode',    header: 'Plus Code'       },
-      { key: 'mapsUrl',     header: 'Google Maps URL' },
-      { key: 'country',     header: 'Country'         },
-      { key: 'city',        header: 'City'            },
-      { key: 'searchQuery', header: 'Search Query'    },
+      { key: 'name', header: 'Business Name' },
+      { key: 'category', header: 'Category' },
+      { key: 'phone', header: 'Phone / WhatsApp' },
+      { key: 'email', header: 'Email' },
+      { key: 'website', header: 'Website URL' },
+      { key: 'address', header: 'Address' },
+      { key: 'rating', header: 'Rating' },
+      { key: 'reviews', header: 'Reviews' },
+      { key: 'hours', header: 'Opening Hours' },
+      { key: 'plusCode', header: 'Plus Code' },
+      { key: 'mapsUrl', header: 'Google Maps URL' },
+      { key: 'country', header: 'Country' },
+      { key: 'city', header: 'City' },
+      { key: 'searchQuery', header: 'Search Query' },
+      { key: 'facebook', header: 'Facebook' },
+      { key: 'instagram', header: 'Instagram' },
+      { key: 'twitter', header: 'Twitter/X' },
+      { key: 'linkedin', header: 'LinkedIn' },
+      { key: 'youtube', header: 'YouTube' },
+      { key: 'tiktok', header: 'TikTok' },
+      { key: 'whatsapp', header: 'WhatsApp' },
     ];
 
     // Build row array
@@ -97,7 +104,7 @@ function exportToExcel(leads, config) {
       { wch: 28 }, // Email
       { wch: 35 }, // Website
       { wch: 35 }, // Address
-      { wch: 8  }, // Rating
+      { wch: 8 }, // Rating
       { wch: 10 }, // Reviews
       { wch: 25 }, // Hours
       { wch: 14 }, // Plus Code
@@ -105,6 +112,13 @@ function exportToExcel(leads, config) {
       { wch: 16 }, // Country
       { wch: 16 }, // City
       { wch: 35 }, // Query
+      { wch: 35 }, // Facebook
+      { wch: 35 }, // Instagram
+      { wch: 35 }, // Twitter/X
+      { wch: 35 }, // LinkedIn
+      { wch: 35 }, // YouTube
+      { wch: 30 }, // TikTok
+      { wch: 25 }, // WhatsApp
     ];
 
     // Freeze header row
@@ -131,12 +145,12 @@ function exportToExcel(leads, config) {
       if (chrome.runtime.lastError) {
         console.error('Download error:', chrome.runtime.lastError);
       } else {
-        chrome.runtime.sendMessage({ action: 'EXPORT_DONE', filename, downloadId }).catch(() => {});
+        chrome.runtime.sendMessage({ action: 'EXPORT_DONE', filename, downloadId }).catch(() => { });
       }
     });
 
   } catch (err) {
     console.error('Excel export error:', err);
-    chrome.runtime.sendMessage({ action: 'LOG', text: 'Export error: ' + err.message, type: 'err' }).catch(() => {});
+    chrome.runtime.sendMessage({ action: 'LOG', text: 'Export error: ' + err.message, type: 'err' }).catch(() => { });
   }
 }

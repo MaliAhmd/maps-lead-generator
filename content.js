@@ -4,18 +4,18 @@ if (!window.__leadHunterInjected) {
   window.__leadHunterInjected = true;
 
   let stopFlag = false;
-  let config   = {};
+  let config = {};
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   function sendLog(text, type = '') {
-    try { chrome.runtime.sendMessage({ action: 'LOG', text, type }); } catch {}
+    try { chrome.runtime.sendMessage({ action: 'LOG', text, type }); } catch { }
   }
   function sendProgress(current, total, text) {
-    try { chrome.runtime.sendMessage({ action: 'PROGRESS', current, total, text, ok: true }); } catch {}
+    try { chrome.runtime.sendMessage({ action: 'PROGRESS', current, total, text, ok: true }); } catch { }
   }
   function sendLeadFound(name, count) {
-    try { chrome.runtime.sendMessage({ action: 'LEAD_FOUND', name, count }); } catch {}
+    try { chrome.runtime.sendMessage({ action: 'LEAD_FOUND', name, count }); } catch { }
   }
 
   function waitForElement(selector, timeout = 8000) {
@@ -126,7 +126,7 @@ if (!window.__leadHunterInjected) {
     if (backBtn) {
       backBtn.click();
       await sleep(2500);
-      try { await waitForElement('[role="feed"]', 8000); } catch {}
+      try { await waitForElement('[role="feed"]', 8000); } catch { }
       await sleep(500);
     } else {
       // No back button found — panel may have closed already or opened inline.
@@ -138,12 +138,12 @@ if (!window.__leadHunterInjected) {
   // ── Extract data from open detail panel ──────────────────────────────────
   function extractPanel() {
     const h1 = document.querySelector('h1.DUwDvf') ||
-               document.querySelector('.fontHeadlineLarge') ||
-               document.querySelector('[data-attrid="title"]');
+      document.querySelector('.fontHeadlineLarge') ||
+      document.querySelector('[data-attrid="title"]');
     if (!h1) return null;
 
     const panel = h1.closest('[role="main"]') || document.body;
-    const lead  = {};
+    const lead = {};
 
     lead.name = h1.textContent.trim();
     if (!lead.name || lead.name.length < 2 || lead.name.toLowerCase().includes('result')) return null;
@@ -194,7 +194,7 @@ if (!window.__leadHunterInjected) {
       }
 
       if (lead.website.includes('google.com/url')) {
-        try { lead.website = new URL(lead.website).searchParams.get('q') || lead.website; } catch {}
+        try { lead.website = new URL(lead.website).searchParams.get('q') || lead.website; } catch { }
       }
     }
 
@@ -228,7 +228,43 @@ if (!window.__leadHunterInjected) {
     }
 
     lead.mapsUrl = window.location.href.split('?')[0];
-    lead.email   = '';
+    lead.email = '';
+
+    // Social media links
+    if (config.extract?.social) {
+      const socialPatterns = {
+        facebook: /facebook\.com\/(?!sharer|share|dialog|login|photo|video|pages\/category|groups\/category)([^/?#&"'\s]+)/i,
+        instagram: /instagram\.com\/([^/?#&"'\s]+)/i,
+        twitter: /(?:twitter|x)\.com\/([^/?#&"'\s]+)/i,
+        linkedin: /linkedin\.com\/(?:company|in)\/([^/?#&"'\s]+)/i,
+        youtube: /youtube\.com\/(?:@|channel\/|c\/)?([^/?#&"'\s]+)/i,
+        tiktok: /tiktok\.com\/@([^/?#&"'\s]+)/i,
+        whatsapp: /(?:wa\.me|whatsapp\.com\/send\??phone=)([^/?#&"'\s]+)/i,
+      };
+
+      const allLinks = Array.from(panel.querySelectorAll('a[href]'))
+        .map(a => a.href || '')
+        .filter(Boolean);
+
+      const html = document.documentElement.innerHTML;
+      const sources = [...allLinks, html];
+
+      for (const [platform, pattern] of Object.entries(socialPatterns)) {
+        lead[platform] = '';
+        for (const src of sources) {
+          const m = src.match(pattern);
+          if (m) {
+            const raw = m[0];
+            lead[platform] = raw.startsWith('http') ? raw : 'https://' + raw;
+            break;
+          }
+        }
+      }
+    } else {
+      lead.facebook = lead.instagram = lead.twitter =
+        lead.linkedin = lead.youtube = lead.tiktok = lead.whatsapp = '';
+    }
+
     return lead;
   }
 
@@ -242,7 +278,7 @@ if (!window.__leadHunterInjected) {
     await scrollFeed(config.limit);
     if (stopFlag) return;
 
-    const feed     = document.querySelector('[role="feed"]');
+    const feed = document.querySelector('[role="feed"]');
     const allCards = feed ? Array.from(feed.querySelectorAll('.Nv2PK')) : [];
 
     if (allCards.length === 0) {
@@ -253,10 +289,10 @@ if (!window.__leadHunterInjected) {
           try {
             const res = await chrome.runtime.sendMessage({ action: 'FETCH_EMAIL', url: lead.website });
             lead.email = res?.email || '';
-          } catch {}
+          } catch { }
         }
-        lead.country     = config.country;
-        lead.city        = config.city || '';
+        lead.country = config.country;
+        lead.city = config.city || '';
         lead.searchQuery = config.query;
         await chrome.storage.local.set({ leads: [lead], scrapeStatus: 'done' });
         sendLeadFound(lead.name, 1);
@@ -276,8 +312,8 @@ if (!window.__leadHunterInjected) {
       if (stopFlag) break;
 
       const currentFeed = document.querySelector('[role="feed"]');
-      const cards       = currentFeed ? Array.from(currentFeed.querySelectorAll('.Nv2PK')) : [];
-      const card        = cards[i];
+      const cards = currentFeed ? Array.from(currentFeed.querySelectorAll('.Nv2PK')) : [];
+      const card = cards[i];
 
       if (!card) { sendLog(`Card ${i + 1}: not found, skipping.`); continue; }
 
@@ -309,11 +345,11 @@ if (!window.__leadHunterInjected) {
           const res = await chrome.runtime.sendMessage({ action: 'FETCH_EMAIL', url: lead.website });
           lead.email = res?.email || '';
           if (lead.email) sendLog(`  email: ${lead.email}`, 'ok');
-        } catch {}
+        } catch { }
       }
 
-      lead.country     = config.country;
-      lead.city        = config.city || '';
+      lead.country = config.country;
+      lead.city = config.city || '';
       lead.searchQuery = config.query;
       leads.push(lead);
 
@@ -331,7 +367,7 @@ if (!window.__leadHunterInjected) {
   // ── Message listener ──────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'START_SCRAPE') {
-      config   = msg.config;
+      config = msg.config;
       stopFlag = false;
       runScrape();
       sendResponse({ status: 'started' });
