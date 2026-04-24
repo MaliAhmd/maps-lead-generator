@@ -65,12 +65,6 @@ if (!window.__leadHunterInjected) {
     sendLog(`Feed has ${feed.querySelectorAll('.Nv2PK').length} cards.`);
   }
 
-  // ── Detect that a detail panel is open ───────────────────────────────────
-  // FIX: The old approach only waited for a "Back" button by aria-label,
-  // which Google Maps doesn't always render (especially in non-English locales
-  // or when the panel opens inline without a navigation stack).
-  // Now we detect the panel being open by the presence of the place title h1,
-  // which is a much more reliable signal that the detail view is fully loaded.
   function isPanelOpen() {
     return !!(
       document.querySelector('h1.DUwDvf') ||
@@ -98,18 +92,13 @@ if (!window.__leadHunterInjected) {
     else card.click();
 
     await sleep(800);
-
-    // Wait for the detail panel title to appear (reliable cross-locale signal)
     const opened = await waitForPanel(10000);
-    if (opened) await sleep(800); // let the rest of the panel render
+    if (opened) await sleep(800);
     return opened;
   }
 
   // ── Go back to results list ───────────────────────────────────────────────
   async function goBack() {
-    // FIX: Broaden the back-button search to cover more Google Maps UI variants.
-    // Added attribute selectors that match partial aria-label values and
-    // additional jsaction patterns observed in different Maps versions.
     const backBtn =
       document.querySelector('button[aria-label="Back"]') ||
       document.querySelector('button[aria-label="Назад"]') ||
@@ -119,7 +108,6 @@ if (!window.__leadHunterInjected) {
       document.querySelector('button[data-value="back"]') ||
       document.querySelector('[jsaction*="pane.place.back"]') ||
       document.querySelector('[jsaction*="back"]') ||
-      // Last resort: any button whose aria-label contains the word "back" (case-insensitive)
       Array.from(document.querySelectorAll('button[aria-label]'))
         .find(b => /back|retour|zurück|назад/i.test(b.getAttribute('aria-label')));
 
@@ -129,8 +117,6 @@ if (!window.__leadHunterInjected) {
       try { await waitForElement('[role="feed"]', 8000); } catch { }
       await sleep(500);
     } else {
-      // No back button found — panel may have closed already or opened inline.
-      // NEVER use history.back() as it navigates away from Maps entirely.
       await sleep(500);
     }
   }
@@ -156,25 +142,17 @@ if (!window.__leadHunterInjected) {
     function safelyExtract(idSubstring) {
       const container = panel.querySelector(`[data-item-id*="${idSubstring}"]`);
       if (!container) return '';
-
       const aria = container.getAttribute('aria-label');
       if (aria) {
         const clean = aria.replace(/^[^:]+:\s*/, '').trim();
-        if (clean.length > 0 && clean.length < 300 && !clean.includes('Hide open hours')) {
-          return clean;
-        }
+        if (clean.length > 0 && clean.length < 300 && !clean.includes('Hide open hours')) return clean;
       }
       const iconText = container.querySelector('.Io6YTe, .fontBodyMedium');
       return iconText ? iconText.textContent.trim() : container.textContent.trim();
     }
 
-    if (config.extract?.address) {
-      lead.address = safelyExtract('address');
-    }
-
-    if (config.extract?.phone) {
-      lead.phone = safelyExtract('phone');
-    }
+    if (config.extract?.address) lead.address = safelyExtract('address');
+    if (config.extract?.phone)   lead.phone   = safelyExtract('phone');
 
     if (config.extract?.website) {
       const webA =
@@ -185,7 +163,6 @@ if (!window.__leadHunterInjected) {
           !a.href.includes('javascript') &&
           a.href.startsWith('http')
         );
-
       lead.website = webA ? webA.href : '';
 
       if (!lead.website) {
@@ -202,20 +179,16 @@ if (!window.__leadHunterInjected) {
       const ratingEl =
         panel.querySelector('.F7nice span[aria-hidden="true"]') ||
         panel.querySelector('span[role="img"][aria-label*="star" i]');
-
       if (ratingEl) {
         const aria = ratingEl.getAttribute('aria-label');
-        if (aria && aria.toLowerCase().includes('star')) {
-          lead.rating = aria.split(' ')[0];
-        } else {
-          lead.rating = ratingEl.textContent.trim();
-        }
+        lead.rating = (aria && aria.toLowerCase().includes('star'))
+          ? aria.split(' ')[0]
+          : ratingEl.textContent.trim();
       } else lead.rating = '';
 
       const reviewEl =
         panel.querySelector('.F7nice span[aria-label*="review" i]') ||
         panel.querySelector('button[aria-label*="review" i]');
-
       if (reviewEl) {
         const ariaInfo = reviewEl.getAttribute('aria-label') || reviewEl.textContent || '';
         const m = ariaInfo.match(/[\d,]+/);
@@ -223,48 +196,60 @@ if (!window.__leadHunterInjected) {
       } else lead.reviews = '';
     }
 
-    if (config.extract?.hours) {
-      lead.hours = safelyExtract('oh');
-    }
+    if (config.extract?.hours) lead.hours = safelyExtract('oh');
 
     lead.mapsUrl = window.location.href.split('?')[0];
-    lead.email = '';
+    lead.email   = '';
 
-    // Social media links
+    // Initialize all social fields empty — will be filled by website scrape below
+    lead.facebook = lead.instagram = lead.twitter =
+      lead.linkedin = lead.youtube = lead.tiktok = lead.whatsapp = '';
+
+    // ── Fallback: try to pick up any social links directly in Maps panel ────
+    // (some businesses do link socials from their Maps listing)
     if (config.extract?.social) {
-      const socialPatterns = {
-        facebook: /facebook\.com\/(?!sharer|share|dialog|login|photo|video|pages\/category|groups\/category)([^/?#&"'\s]+)/i,
+      const quickPatterns = {
+        facebook:  /facebook\.com\/(?!sharer|share|dialog|login|photo|video)([^/?#&"'\s]+)/i,
         instagram: /instagram\.com\/([^/?#&"'\s]+)/i,
-        twitter: /(?:twitter|x)\.com\/([^/?#&"'\s]+)/i,
-        linkedin: /linkedin\.com\/(?:company|in)\/([^/?#&"'\s]+)/i,
-        youtube: /youtube\.com\/(?:@|channel\/|c\/)?([^/?#&"'\s]+)/i,
-        tiktok: /tiktok\.com\/@([^/?#&"'\s]+)/i,
-        whatsapp: /(?:wa\.me|whatsapp\.com\/send\??phone=)([^/?#&"'\s]+)/i,
+        twitter:   /(?:twitter|x)\.com\/([^/?#&"'\s]+)/i,
+        linkedin:  /linkedin\.com\/(?:company|in)\/([^/?#&"'\s]+)/i,
+        youtube:   /youtube\.com\/(?:@|channel\/|c\/)?([^/?#&"'\s]+)/i,
+        tiktok:    /tiktok\.com\/@([^/?#&"'\s]+)/i,
+        whatsapp:  /(?:wa\.me|whatsapp\.com\/send\??phone=)([^/?#&"'\s]+)/i,
       };
-
-      const allLinks = Array.from(panel.querySelectorAll('a[href]'))
-        .map(a => a.href || '')
-        .filter(Boolean);
-
-      const html = document.documentElement.innerHTML;
-      const sources = [...allLinks, html];
-
-      for (const [platform, pattern] of Object.entries(socialPatterns)) {
-        lead[platform] = '';
-        for (const src of sources) {
-          const m = src.match(pattern);
-          if (m) {
-            const raw = m[0];
-            lead[platform] = raw.startsWith('http') ? raw : 'https://' + raw;
-            break;
-          }
+      const panelLinks = Array.from(panel.querySelectorAll('a[href]')).map(a => a.href);
+      for (const [platform, pattern] of Object.entries(quickPatterns)) {
+        for (const href of panelLinks) {
+          const m = href.match(pattern);
+          if (m) { lead[platform] = m[0].startsWith('http') ? m[0] : 'https://' + m[0]; break; }
         }
       }
-    } else {
-      lead.facebook = lead.instagram = lead.twitter =
-        lead.linkedin = lead.youtube = lead.tiktok = lead.whatsapp = '';
     }
 
+    return lead;
+  }
+
+  // ── Fetch social links from the lead's website ────────────────────────────
+  async function enrichSocialsFromWebsite(lead) {
+    if (!config.extract?.social) return lead;
+    if (!lead.website) return lead;
+
+    sendLog(`→ Scraping social links from: ${lead.website}`);
+    try {
+      const res = await chrome.runtime.sendMessage({ action: 'FETCH_SOCIALS', url: lead.website });
+      const socials = res?.socials || {};
+
+      // Only overwrite if the website gave us a better (non-empty) result
+      const platforms = ['facebook', 'instagram', 'twitter', 'linkedin', 'youtube', 'tiktok', 'whatsapp'];
+      let found = 0;
+      for (const p of platforms) {
+        if (socials[p]) { lead[p] = socials[p]; found++; }
+      }
+      if (found > 0) sendLog(`  Found ${found} social link(s) from website.`, 'ok');
+      else           sendLog(`  No social links found on website.`);
+    } catch (err) {
+      sendLog(`  Social fetch error: ${err.message}`, 'err');
+    }
     return lead;
   }
 
@@ -283,7 +268,7 @@ if (!window.__leadHunterInjected) {
 
     if (allCards.length === 0) {
       sendLog('No cards found — trying single result mode…');
-      const lead = extractPanel();
+      let lead = extractPanel();
       if (lead) {
         if (lead.website && config.extract?.email) {
           try {
@@ -291,8 +276,11 @@ if (!window.__leadHunterInjected) {
             lead.email = res?.email || '';
           } catch { }
         }
+        // ── Enrich socials from website ──────────────────────────────────────
+        lead = await enrichSocialsFromWebsite(lead);
+
         lead.country = config.country;
-        lead.city = config.city || '';
+        lead.city    = config.city || '';
         lead.searchQuery = config.query;
         await chrome.storage.local.set({ leads: [lead], scrapeStatus: 'done' });
         sendLeadFound(lead.name, 1);
@@ -313,7 +301,7 @@ if (!window.__leadHunterInjected) {
 
       const currentFeed = document.querySelector('[role="feed"]');
       const cards = currentFeed ? Array.from(currentFeed.querySelectorAll('.Nv2PK')) : [];
-      const card = cards[i];
+      const card  = cards[i];
 
       if (!card) { sendLog(`Card ${i + 1}: not found, skipping.`); continue; }
 
@@ -329,7 +317,7 @@ if (!window.__leadHunterInjected) {
         continue;
       }
 
-      const lead = extractPanel();
+      let lead = extractPanel();
       if (!lead) {
         sendLog(`Card ${i + 1}: no data extracted, skipping.`);
         await goBack();
@@ -339,6 +327,7 @@ if (!window.__leadHunterInjected) {
       sendProgress(i + 1, total, `(${i + 1}/${total}) ${lead.name}`);
       sendLog(`✓ ${lead.name}`, 'ok');
 
+      // ── Email from website ─────────────────────────────────────────────────
       if (lead.website && config.extract?.email) {
         sendLog(`→ Hunting email on: ${lead.website}`);
         try {
@@ -348,8 +337,11 @@ if (!window.__leadHunterInjected) {
         } catch { }
       }
 
-      lead.country = config.country;
-      lead.city = config.city || '';
+      // ── Social links from website footer (main new feature) ───────────────
+      lead = await enrichSocialsFromWebsite(lead);
+
+      lead.country     = config.country;
+      lead.city        = config.city || '';
       lead.searchQuery = config.query;
       leads.push(lead);
 
@@ -367,8 +359,8 @@ if (!window.__leadHunterInjected) {
   // ── Message listener ──────────────────────────────────────────────────────
   chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (msg.action === 'START_SCRAPE') {
-      config = msg.config;
-      stopFlag = false;
+      config    = msg.config;
+      stopFlag  = false;
       runScrape();
       sendResponse({ status: 'started' });
     }
