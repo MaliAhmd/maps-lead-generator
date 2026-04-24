@@ -99,3 +99,5 @@ gmaps-lead-extension/
 
 **Scraping stops early**
 → Google may have shown a CAPTCHA in the Maps tab. Complete it and retry.
+
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=MaliAhmd.maps-lead-generator)
